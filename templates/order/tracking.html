@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Order Tracking - Restaurant Site{% endblock %}
+
+{% block content %}
+<div id="tracking-app"></div>
+
+<script type="text/babel">
+    function TrackingApp() {
+        const [order, setOrder] = React.useState(null);
+        const [loading, setLoading] = React.useState(true);
+        const orderId = {{ order.id }};
+
+        React.useEffect(() => {
+            fetchOrder();
+            // Poll for updates every 30 seconds
+            const interval = setInterval(fetchOrder, 30000);
+            return () => clearInterval(interval);
+        }, []);
+
+        const fetchOrder = async () => {
+            try {
+                const response = await fetch(`/order/api/status/${orderId}/`);
+                const data = await response.json();
+                setOrder(data);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching order:', error);
+                setLoading(false);
+            }
+        };
+
+        const getStatusColor = (status) => {
+            const colors = {
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'paid': 'bg-blue-100 text-blue-800',
+                'confirmed': 'bg-green-100 text-green-800',
+                'preparing': 'bg-orange-100 text-orange-800',
+                'ready': 'bg-purple-100 text-purple-800',
+                'delivered': 'bg-green-100 text-green-800',
+                'cancelled': 'bg-red-100 text-red-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        };
+
+        const getStatusSteps = () => {
+            const steps = [
+                { key: 'pending', label: 'Order Placed', description: 'Waiting for payment confirmation' },
+                { key: 'paid', label: 'Payment Received', description: 'Payment has been confirmed' },
+                { key: 'confirmed', label: 'Order Confirmed', description: 'Order has been confirmed by restaurant' },
+                { key: 'preparing', label: 'Preparing', description: 'Your food is being prepared' },
+                { key: 'ready', label: 'Ready', description: 'Order is ready for pickup/delivery' },
+                { key: 'delivered', label: 'Delivered', description: 'Order has been delivered' }
+            ];
+
+            const statusOrder = ['pending', 'paid', 'confirmed', 'preparing', 'ready', 'delivered'];
+            const currentIndex = statusOrder.indexOf(order?.status);
+
+            return steps.map((step, index) => ({
+                ...step,
+                completed: index <= currentIndex,
+                current: index === currentIndex
+            }));
+        };
+
+        if (loading) {
+            return (
+                <div className="flex justify-center items-center h-64">
+                    <div className="text-xl text-gray-600">Loading order details...</div>
+                </div>
+            );
+        }
+
+        if (!order) {
+            return (
+                <div className="text-center py-12">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-4">Order Not Found</h1>
+                    <a href="/menu/" className="bg-primary text-white px-6 py-3 rounded-lg">
+                        Browse Menu
+                    </a>
+                </div>
+            );
+        }
+
+        const steps = getStatusSteps();
+
+        return (
+            <div className="max-w-4xl mx-auto">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Order Tracking</h1>
+                    <p className="text-gray-600">Order #{order.order_number}</p>
+                </div>
+
+                {/* Status Timeline */}
+                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <h2 className="text-xl font-semibold mb-6">Order Status</h2>
+                    <div className="space-y-4">
+                        {steps.map((step, index) => (
+                            <div key={step.key} className="flex items-center">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                    step.completed ? 'bg-green-500 text-white' : 
+                                    step.current ? 'bg-primary text-white' : 'bg-gray-300 text-gray-600'
+                                }`}>
+                                    {step.completed ? '✓' : index + 1}
+                                </div>
+                                <div className="ml-4 flex-1">
+                                    <div className={`font-semibold ${step.current ? 'text-primary' : step.completed ? 'text-green-600' : 'text-gray-500'}`}>
+                                        {step.label}
+                                    </div>
+                                    <div className="text-sm text-gray-600">{step.description}</div>
+                                </div>
+                                {step.current && (
+                                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                                        Current Status
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Order Details */}
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Order Details</h2>
+                        <div className="space-y-2 text-sm">
+                            <div><strong>Customer:</strong> {order.customer_name}</div>
+                            <div><strong>Phone:</strong> {order.customer_phone}</div>
+                            <div><strong>Email:</strong> {order.customer_email}</div>
+                            {order.delivery_address && (
+                                <div><strong>Delivery Address:</strong> {order.delivery_address}</div>
+                            )}
+                            <div><strong>Payment Method:</strong> {order.payment_method}</div>
+                            <div><strong>Order Date:</strong> {new Date(order.created_at).toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Items Ordered</h2>
+                        <div className="space-y-2">
+                            {order.items.map((item, index) => (
+                                <div key={index} className="flex justify-between items-center py-2 border-b">
+                                    <div>
+                                        <span className="font-medium">{item.food_name}</span>
+                                        <span className="text-gray-600 ml-2">x{item.quantity}</span>
+                                    </div>
+                                    <span className="font-semibold">${item.subtotal}</span>
+                                </div>
+                            ))}
+                            <div className="flex justify-between items-center pt-4 text-xl font-bold">
+                                <span>Total:</span>
+                                <span>${order.total}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-8 text-center">
+                    <a href="/menu/" className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors">
+                        Order Again
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<TrackingApp />, document.getElementById('tracking-app'));
+</script>
+{% endblock %}

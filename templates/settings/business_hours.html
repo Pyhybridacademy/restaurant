@@ -1,0 +1,11 @@
+<div class="business-hours">
+    <h4 class="font-semibold mb-2">Business Hours</h4>
+    <div class="space-y-1 text-sm">
+        {% for day, hours in hours.items %}
+            <div class="flex justify-between">
+                <span class="font-medium">{{ day }}:</span>
+                <span>{{ hours }}</span>
+            </div>
+        {% endfor %}
+    </div>
+</div>

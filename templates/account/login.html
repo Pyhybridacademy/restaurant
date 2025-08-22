@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Restaurant Site{% endblock %}
+
+{% block content %}
+<div id="login-app"></div>
+
+<script type="text/babel">
+    function LoginApp() {
+        const [formData, setFormData] = React.useState({
+            username: '',
+            password: ''
+        });
+        const [loading, setLoading] = React.useState(false);
+        const [error, setError] = React.useState('');
+
+        const handleChange = (e) => {
+            setFormData({
+                ...formData,
+                [e.target.name]: e.target.value
+            });
+        };
+
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            setError('');
+
+            try {
+                const response = await fetch('/account/api/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.csrfToken
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Login successful!');
+                    window.location.href = '/menu/';
+                } else {
+                    setError(data.non_field_errors?.[0] || 'Login failed');
+                }
+            } catch (error) {
+                setError('Network error. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        return (
+            <div className="max-w-md mx-auto">
+                <div className="bg-white rounded-lg shadow-md p-8">
+                    <h1 className="text-2xl font-bold text-center text-gray-900 mb-8">Login</h1>
+                    
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                Username
+                            </label>
+                            <input
+                                type="text"
+                                name="username"
+                                value={formData.username}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+                                required
+                            />
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-primary text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
+                        >
+                            {loading ? 'Logging in...' : 'Login'}
+                        </button>
+                    </form>
+
+                    <div className="text-center mt-6">
+                        <p className="text-gray-600">
+                            Don't have an account? 
+                            <a href="/account/register/" className="text-primary hover:text-orange-600 ml-1">
+                                Sign up here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<LoginApp />, document.getElementById('login-app'));
+</script>
+{% endblock %}

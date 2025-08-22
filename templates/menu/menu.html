@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Menu - Restaurant Site{% endblock %}
+
+{% block content %}
+<div id="menu-app"></div>
+
+<script type="text/babel">
+    function MenuApp() {
+        const [categories, setCategories] = React.useState([]);
+        const [foods, setFoods] = React.useState([]);
+        const [selectedCategory, setSelectedCategory] = React.useState(null);
+        const [loading, setLoading] = React.useState(true);
+        const [cartCount, setCartCount] = React.useState(0);
+
+        React.useEffect(() => {
+            fetchCategories();
+            fetchFoods();
+            fetchCartCount();
+        }, []);
+
+        const fetchCategories = async () => {
+            try {
+                const response = await fetch('/menu/api/categories/');
+                const data = await response.json();
+                setCategories(data);
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+            }
+        };
+
+        const fetchFoods = async (categoryId = null) => {
+            try {
+                const url = categoryId 
+                    ? `/menu/api/foods/category/${categoryId}/`
+                    : '/menu/api/foods/';
+                const response = await fetch(url);
+                const data = await response.json();
+                setFoods(data);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching foods:', error);
+                setLoading(false);
+            }
+        };
+
+        const fetchCartCount = async () => {
+            try {
+                const response = await fetch('/cart/api/items/');
+                const data = await response.json();
+                setCartCount(data.total_items || 0);
+            } catch (error) {
+                console.error('Error fetching cart count:', error);
+            }
+        };
+
+        const addToCart = async (foodId) => {
+            try {
+                const response = await fetch('/cart/api/add/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.csrfToken
+                    },
+                    body: JSON.stringify({ food_id: foodId, quantity: 1 })
+                });
+                
+                if (response.ok) {
+                    fetchCartCount();
+                    alert('Item added to cart!');
+                } else {
+                    alert('Error adding item to cart');
+                }
+            } catch (error) {
+                console.error('Error adding to cart:', error);
+            }
+        };
+
+        const filterByCategory = (categoryId) => {
+            setSelectedCategory(categoryId);
+            setLoading(true);
+            fetchFoods(categoryId);
+        };
+
+        const showAllFoods = () => {
+            setSelectedCategory(null);
+            setLoading(true);
+            fetchFoods();
+        };
+
+        if (loading) {
+            return (
+                <div className="flex justify-center items-center h-64">
+                    <div className="text-xl text-gray-600">Loading menu...</div>
+                </div>
+            );
+        }
+
+        return (
+            <div>
+                {/* Header with cart count */}
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-4xl font-bold text-gray-900">Our Menu</h1>
+                    <a href="/cart/" className="bg-primary text-white px-4 py-2 rounded-lg flex items-center">
+                        Cart ({cartCount})
+                    </a>
+                </div>
+
+                {/* Category filters */}
+                <div className="mb-8">
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={showAllFoods}
+                            className={`px-4 py-2 rounded-lg ${
+                                selectedCategory === null 
+                                    ? 'bg-primary text-white' 
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            All Items
+                        </button>
+                        {categories.map(category => (
+                            <button
+                                key={category.id}
+                                onClick={() => filterByCategory(category.id)}
+                                className={`px-4 py-2 rounded-lg ${
+                                    selectedCategory === category.id 
+                                        ? 'bg-primary text-white' 
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                            >
+                                {category.name} ({category.foods_count})
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Food items grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {foods.map(food => (
+                        <div key={food.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                            {food.image && (
+                                <img 
+                                    src={food.image || "/placeholder.svg"} 
+                                    alt={food.name}
+                                    className="w-full h-48 object-cover"
+                                />
+                            )}
+                            <div className="p-4">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">{food.name}</h3>
+                                <p className="text-gray-600 text-sm mb-3">{food.description}</p>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xl font-bold text-primary">${food.price}</span>
+                                    <button
+                                        onClick={() => addToCart(food.id)}
+                                        className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                                    >
+                                        Add to Cart
+                                    </button>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-2">
+                                    Category: {food.category_name}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {foods.length === 0 && (
+                    <div className="text-center py-12">
+                        <p className="text-gray-600 text-lg">No items found in this category.</p>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    ReactDOM.render(<MenuApp />, document.getElementById('menu-app'));
+</script>
+{% endblock %}
